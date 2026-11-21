@@ -6,5 +6,15 @@ def archive_decision(state):
     return {'seal':seal,'status':'可归档' if ready else '待处理','tickets':len(state['final']),'reasons':len(state['quarantine'])}
 
 def apply(state):
-    state['archive']=archive_decision(state)
-    state['views']['archive']={'title':'结算封存','rows':state['version_audit'],'metrics':{'封存票':state['archive']['tickets'],'隔离证据':len(state['quarantine']),'状态':state['archive']['status']}}
+    state['archive'] = archive_decision(state)
+    state['views']['archive'] = {
+        'title': '结算封存',
+        'rows': state['version_audit'],
+        'metrics': {
+            '封存票': state['archive']['tickets'],
+            '隔离证据': len(state['quarantine']),
+            '可开票': state['invoice_summary']['invoiceable_tickets'],
+            '待处理票': state['invoice_summary']['blocked_tickets'],
+            '状态': state['archive']['status'],
+        },
+    }

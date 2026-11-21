@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import ROOT, META, MODULES, DB_PATH
 from app.errors import BusinessError
 from app.engine import evaluate
-from app import store
+from app import store, invoice_store
 from app.archive import serialize
 
 @asynccontextmanager
@@ -47,6 +47,7 @@ def review(run_id:str,payload:dict=Body(...)):
 @app.get('/api/export/{run_id}')
 def export(run_id:str):
     result=store.get(DB_PATH,run_id)
-    return Response(serialize(result),media_type='application/zip',headers={'Content-Disposition':f'attachment; filename="{run_id}.zip"'})
+    ledger = invoice_store.ledger(DB_PATH,result) if 'invoiceable' in result else None
+    return Response(serialize(result,ledger),media_type='application/zip',headers={'Content-Disposition':f'attachment; filename="{run_id}.zip"'})
 for key in MODULES:
     app.include_router(import_module(f'app.modules.{key}.handler').router)

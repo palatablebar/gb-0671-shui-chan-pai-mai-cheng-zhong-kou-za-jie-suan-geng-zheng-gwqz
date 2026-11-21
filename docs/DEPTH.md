@@ -12,7 +12,8 @@
 | M4 扣杂竞价 | 查看并执行扣杂竞价 | `POST /api/auction` | `app/modules/auction/rules.py` | `tests/test_auction.py` |
 | M5 更正裁决 | 查看并执行更正裁决 | `POST /api/correction` | `app/modules/correction/rules.py` | `tests/test_correction.py` |
 | M6 应付对账 | 查看并执行应付对账 | `POST /api/reconcile` | `app/modules/reconcile/rules.py` | `tests/test_reconcile.py` |
-| M7 结算归档 | 查看并执行结算归档 | `POST /api/archive` | `app/modules/archive/rules.py` | `tests/test_archive.py` |
+| M7 可开票台账 | 核对已开/调整/最终应付并开票 | `POST /api/billing` | `app/modules/billing/rules.py`、`app/invoice_store.py` | `tests/test_billing.py`、`tests/test_invoice_store.py`、`tests/test_billing_api.py` |
+| M8 结算归档 | 查看并执行结算归档 | `POST /api/archive` | `app/modules/archive/rules.py` | `tests/test_archive.py` |
 
 ## 陷阱登记
 
@@ -34,6 +35,10 @@
 ## 对账规则
 
 输入=采纳原始行+隔离行+空行+同值重复行+重复表头。计价版本总额与生效票总额分别展示，避免把更正前后重复求和。最终应付=已付+待付，负待付为退款。
+
+## 开票规则
+
+先按当前应付开可开票结果，船户当天即可核账；后到更正闭合后重算，已开金额不动，只就差额开调整票（正补开/负红冲）。三道闸门（发票号重复、更正缺前版、金额未对平）任一命中即进待处理票，不进可开结果。同票同版本重跑幂等；事件只追加，发布中断回滚并由 resume 恢复旧版记录；可开票金额与待处理金额守恒，封存包含完整票据事件。
 
 ## 已知不覆盖
 

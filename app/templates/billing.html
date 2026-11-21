@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="grid">
+  <section class="panel primary-panel">
+    <div class="panel__head"><h2>开票台账 · 每票可开票结果</h2><span>{{ invoice_ledger.tickets|length }} 票</span></div>
+    <div class="scroll">
+      <table class="ledger">
+        <thead><tr>
+          <th>票号</th><th>版本</th><th>已开金额</th><th>之后调整</th><th>最终应付</th><th>待开差额</th><th>发票号</th><th>操作</th>
+        </tr></thead>
+        <tbody>
+        {% for t in invoice_ledger.tickets %}
+          <tr data-ticket="{{ t.ticket }}">
+            <td>{{ t.ticket }}</td>
+            <td class="num">{{ version_map.get(t.ticket, '') }}</td>
+            <td class="num">{{ t.original_amount }}</td>
+            <td class="num">{{ t.adjustment_amount }}</td>
+            <td class="num">{{ t.final_amount }}</td>
+            <td class="num">{{ t.remaining }}</td>
+            <td>{{ t.invoice_nos | join(' / ') }}</td>
+            <td>
+              <input class="inv-no" data-ticket="{{ t.ticket }}" placeholder="发票号" style="height:24px;max-width:110px">
+              <button class="btn issue-btn" data-ticket="{{ t.ticket }}">开票</button>
+              <button class="btn adjust-btn" data-ticket="{{ t.ticket }}">开调整票</button>
+              {% if t.publishing %}<span class="lamp warn" title="发布中断，待恢复"></span>{% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td>暂无可开票结果。</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="panel__bar">
+      <label>票号 <input id="filter" placeholder="筛选票号"></label>
+      <button id="resume" class="btn">恢复中断票据</button>
+    </div>
+  </section>
+
+  <div class="stack">
+    <section class="panel">
+      <div class="panel__head"><h2>可开票汇总</h2><span>守恒 {{ '是' if state.invoice_summary.conservation_ok else '否' }}</span></div>
+      <table class="ledger">
+        <tr><td>可开票数</td><td class="num">{{ state.invoice_summary.invoiceable_tickets }}</td></tr>
+        <tr><td>可开金额 CNY</td><td class="num">{{ state.invoice_summary.invoiceable_amount }}</td></tr>
+        <tr><td>待处理票</td><td class="num">{{ state.invoice_summary.blocked_tickets }}</td></tr>
+        <tr><td>待处理金额 CNY</td><td class="num">{{ state.invoice_summary.blocked_amount }}</td></tr>
+        <tr><td>生效应付 CNY</td><td class="num">{{ state.invoice_summary.final_amount }}</td></tr>
+      </table>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head"><h2>待处理票（不进可开结果）</h2><span>{{ invoice_ledger.blocked|length }} 票</span></div>
+      <div class="scroll">
+        <table class="ledger">
+          <thead><tr><th>票号</th><th>版本</th><th>金额</th><th>阻断原因</th></tr></thead>
+          <tbody>
+          {% for b in invoice_ledger.blocked %}
+            <tr><td>{{ b.ticket }}</td><td class="num">{{ b.version }}</td><td class="num">{{ b.amount }}</td>
+              <td>{% for x in b.blockers %}<div>{{ x.code }} {{ x.detail }}</div>{% endfor %}</td></tr>
+          {% else %}
+            <tr><td>无待处理票。</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<section class="panel log-panel">
+  <div class="panel__head"><h2>票据事件日志（只追加 · 原始凭证）</h2><span id="log-state">{{ invoice_ledger.events|length }} 事件</span></div>
+  <div id="log-tail" class="log-tail">
+    {% for e in invoice_ledger.events %}
+      <div><time>{{ e.created_at[11:19] }}</time><span class="lamp {% if e.event_type=='voided' %}warn{% endif %}"></span>
+        {{ e.event_type|upper }}　票 {{ e.ticket }}　{{ e.payload }}</div>
+    {% else %}
+      <div>暂无票据事件。</div>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+const runId={{ state.manifest.run_id | tojson }};
+async function post(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.detail||'操作失败');
+  return data;
+}
+function noOf(btn){const input=document.querySelector('.inv-no[data-ticket="'+btn.dataset.ticket+'"]');return (input.value||'').trim();}
+async function act(btn,url){
+  const invoice_no=noOf(btn);
+  if(!invoice_no){document.querySelector('#feedback').textContent='请先填写发票号';return;}
+  btn.disabled=true;
+  try{await post(url,{ticket:btn.dataset.ticket,invoice_no});location.reload();}
+  catch(e){document.querySelector('#feedback').textContent=e.message;btn.disabled=false;}
+}
+document.querySelectorAll('.issue-btn').forEach(b=>b.addEventListener('click',()=>act(b,'/api/runs/'+runId+'/invoices')));
+document.querySelectorAll('.adjust-btn').forEach(b=>b.addEventListener('click',()=>act(b,'/api/runs/'+runId+'/invoices/adjust')));
+document.querySelector('#resume').addEventListener('click',async e=>{
+  e.target.disabled=true;
+  try{const r=await post('/api/runs/'+runId+'/invoices/resume',{});
+    document.querySelector('#feedback').textContent=r.recovered.length?('已恢复 '+r.recovered.map(x=>x.ticket).join(',')):'无中断票据';
+    if(r.recovered.length)location.reload();}
+  catch(err){document.querySelector('#feedback').textContent=err.message;}
+  finally{e.target.disabled=false;}
+});
+</script>
+{% endblock %}

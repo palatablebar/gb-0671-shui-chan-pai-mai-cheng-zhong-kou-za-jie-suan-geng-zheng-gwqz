@@ -4,6 +4,9 @@ REASONS = {
     'BAD_UNIT':'单位不受支持', 'UNKNOWN_REFERENCE':'引用对象不存在', 'INVALID_RANGE':'范围错误',
     'VERSION_CONFLICT':'版本冲突', 'EMPTY_FILE':'空文件', 'BLANK_FILE':'全空行',
     'HEADER_ONLY':'仅有表头', 'STALE_VERSION':'复核版本已更新', 'NOT_FOUND':'批次不存在',
+    'DUP_INVOICE_NO':'发票号重复', 'BROKEN_CHAIN':'更正链缺前版', 'AMOUNT_UNBALANCED':'金额未对平',
+    'TICKET_BLOCKED':'票未通过开票闸门', 'TICKET_NOT_FOUND':'票号不存在',
+    'BAD_INVOICE_NO':'发票号无效', 'INCOMPLETE_RUN':'批次未完成', 'BAD_PAYLOAD':'请求参数错误',
 }
 def reject(state, record, code, detail):
     state['quarantine'].append({'line':record.get('_line',0),'id':record.get('id',''),
